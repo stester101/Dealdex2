@@ -55,7 +55,102 @@ func _ready() -> void:
 	if "--selftest" in OS.get_cmdline_user_args():
 		await _selftest()
 		return
+	if "--shots" in OS.get_cmdline_user_args():
+		await _shots()
+		return
 	_show_title()
+
+
+# ------------------------------------------------------------------ CI screenshots
+func _shot(name: String) -> void:
+	await RenderingServer.frame_post_draw
+	var img = get_viewport().get_texture().get_image()
+	var dir = ProjectSettings.globalize_path("res://logs/shots/")
+	DirAccess.make_dir_recursive_absolute(dir)
+	img.save_png(dir + name + ".png")
+	print("SHOT ", name, " ", img.get_size())
+
+
+func _wait(s: float) -> void:
+	await get_tree().create_timer(s).timeout
+
+
+func _shots() -> void:
+	## Renders key screens to logs/shots/*.png (CI runs this under xvfb).
+	Sfx.muted = true
+	var t = Title.new()
+	ui_layer.add_child(t)
+	t.run()
+	await _wait(1.0)
+	await _shot("01_title")
+	t.queue_free()
+	Game.new_state()
+	for sp in ["tulipup", "cookush", "grachtling"]:
+		Game.state.party.append(Game.mk_mon(sp, 7))
+	world.load_map("ferry", Vector2i(11, 16), 3)
+	await _wait(0.5)
+	await _shot("02_ferry")
+	Menus.starter_picker(self)
+	await _wait(0.6)
+	await _shot("03_starter")
+	for c in ui_layer.get_children():
+		c.queue_free()
+	dialog.close()
+	choice.visible = false
+	world.load_map("ferry", Vector2i(10, 22), 0)
+	await _wait(0.5)
+	await _shot("04_ferry_cargo")
+	world.load_map("quay", Vector2i(16, 9), 3)
+	await _wait(2.6)
+	await _shot("05_quay")
+	world.load_map("quay", Vector2i(14, 20), 0)
+	await _wait(2.6)
+	await _shot("06_park")
+	dialog.say(["Amsterdam. Smell that?", "...That's the canal, mate."], "KETTLE")
+	await _wait(1.2)
+	await _shot("07_dialog")
+	dialog.close()
+	world.load_map("hostel", Vector2i(4, 5), 3)
+	await _wait(2.6)
+	await _shot("08_hostel")
+	world.load_map("quay", Vector2i(16, 9), 3)
+	panel.visible = false
+	in_battle = true
+	var b = BattleScene.new()
+	battle_layer.add_child(b)
+	b.setup({"kind": "wild", "foes": [Game.mk_mon("bitterbal", 5)], "bg": "canal"})
+	b.msg.auto_advance = 0.3
+	b.run()
+	await _wait(1.0)
+	await _shot("09_battle_intro")
+	await _wait(3.5)
+	await _shot("10_battle_cmd")
+	b.mode = "moves"
+	await _wait(0.2)
+	await _shot("11_battle_moves")
+	b.queue_free()
+	var b2 = BattleScene.new()
+	battle_layer.add_child(b2)
+	b2.setup({"kind": "trainer", "foes": [Game.mk_mon("stowaweed", 4)], "name": "DECKHAND DES", "sheet": "deckhand", "bg": "ferry"})
+	b2.msg.auto_advance = 0.3
+	b2.run()
+	await _wait(1.0)
+	await _shot("12_trainer_intro")
+	await _wait(4.0)
+	await _shot("13_ferry_battle")
+	b2.queue_free()
+	panel.visible = true
+	in_battle = false
+	Menus.party_list(self)
+	await _wait(0.4)
+	await _shot("14_party")
+	for c in ui_layer.get_children():
+		c.queue_free()
+	Menus.show_summary(self, Game.state.party[0])
+	await _wait(0.4)
+	await _shot("15_summary")
+	print("SHOTS DONE")
+	get_tree().quit(0)
 
 
 # ------------------------------------------------------------------ CI self-test

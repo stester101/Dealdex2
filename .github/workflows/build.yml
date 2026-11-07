@@ -89,6 +89,13 @@ jobs:
           files: build/DealDex2.apk
           make_latest: true
 
+      - name: Screenshots (software OpenGL under xvfb)
+        continue-on-error: true
+        run: |
+          apt-get update -qq && apt-get install -y -qq xvfb xauth libgl1-mesa-dri libglx-mesa0 libegl1 >/dev/null 2>&1 || true
+          mkdir -p logs/shots
+          LIBGL_ALWAYS_SOFTWARE=1 timeout 240 xvfb-run -a -s "-screen 0 1280x1024x24" godot --path . --rendering-driver opengl3 -- --shots 2>&1 | tail -n 40 > logs/shots.log || true
+
       - name: Push logs to ci-logs branch
         if: always()
         run: |

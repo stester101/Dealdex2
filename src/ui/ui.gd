@@ -55,5 +55,4 @@ static func fade_rect() -> ColorRect:
 	var r = ColorRect.new()
 	r.color = Color(0, 0, 0, 0)
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	r.set_anchors_preset(Control.PRESET_FULL_RECT)
 	return r
