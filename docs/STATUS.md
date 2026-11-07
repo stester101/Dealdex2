@@ -14,4 +14,6 @@
 - Gyms, natures, abilities, double battles, evolutions, shops, storage box UI.
 
 ## Known issues
+- The ferry's side rails use the horizontal rail tile, so they look like ladders. A vertical rail tile is needed.
+- The hostel room is small. It shows a lot of empty screen around it.
 - See the latest `ci-logs` branch for the self-test result.

@@ -3,6 +3,9 @@
 ## Automatic (CI)
 Each push runs `godot --headless --path . -- --selftest`. It loads every map, runs dialog, plays real battle turns, a catch, XP, the AI, menus data, save and load. CI fails if the log has a script error or no `SELFTEST OK`. Logs go to the `ci-logs` branch.
 
+## Screenshots (CI)
+CI also renders 15 key screens with software OpenGL under xvfb (`-- --shots`). They are in `shots/` on the `ci-logs` branch. Use them to check visuals without a phone.
+
 ## On the phone
 1. New game: watch the intro, pick a starter, battle Oli.
 2. Walk to the cargo nets. Catch a Stowaweed (weaken it first).
