@@ -1,0 +1,47 @@
+; Engine configuration file.
+; Deal Dex 2 - Godot 4.3, Android only.
+
+config_version=5
+
+[application]
+
+config/name="Deal Dex 2"
+config/description="Amsterdam & Back - a Deal Dex sequel."
+config/version="0.1.0"
+run/main_scene="res://src/main.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+boot_splash/bg_color=Color(0.06, 0.05, 0.1, 1)
+boot_splash/show_image=false
+config/icon="res://icon.png"
+
+[autoload]
+
+Data="*res://src/data.gd"
+Game="*res://src/game.gd"
+Sfx="*res://src/audio.gd"
+
+[display]
+
+window/size/viewport_width=270
+window/size/viewport_height=600
+window/size/window_width_override=405
+window/size/window_height_override=900
+window/stretch/mode="viewport"
+window/stretch/aspect="expand"
+window/stretch/scale_mode="integer"
+window/handheld/orientation=1
+
+[input_devices]
+
+pointing/emulate_mouse_from_touch=true
+pointing/emulate_touch_from_mouse=false
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=0
+textures/vram_compression/import_etc2_astc=true
+2d/snap/snap_2d_transforms_to_pixel=true
+2d/snap/snap_2d_vertices_to_pixel=true
+environment/defaults/default_clear_color=Color(0.06, 0.05, 0.1, 1)

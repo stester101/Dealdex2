@@ -1,0 +1,106 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: "4.3"
+
+jobs:
+  android:
+    runs-on: ubuntu-22.04
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Install git
+        run: |
+          if ! command -v git >/dev/null; then apt-get update && apt-get install -y git; fi
+
+      - uses: actions/checkout@v4
+
+      - name: Set up Godot export
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates ~/.config/godot build logs
+          cp -r /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/ || true
+          keytool -genkeypair -v -keystore /tmp/debug.keystore -storepass android -alias androiddebugkey \
+            -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          JAVA_DIR=$(dirname "$(dirname "$(readlink -f "$(which java)")")")
+          SDK_DIR=${ANDROID_HOME:-/usr/lib/android-sdk}
+          for f in editor_settings-4.3.tres editor_settings-4.tres; do
+          cat > ~/.config/godot/$f <<EOS
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "$SDK_DIR"
+          export/android/java_sdk_path = "$JAVA_DIR"
+          export/android/debug_keystore = "/tmp/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOS
+          sed -i 's/^          //' ~/.config/godot/$f
+          done
+          cat ~/.config/godot/editor_settings-4.3.tres
+
+      - name: Import assets
+        run: |
+          timeout 300 godot --headless --path . --editor --quit 2>&1 | tail -n 40 > logs/import.log || true
+          timeout 300 godot --headless --path . --editor --quit 2>&1 | tail -n 40 >> logs/import.log || true
+
+      - name: Self-test (runs every system headless)
+        id: selftest
+        continue-on-error: true
+        run: |
+          timeout 240 godot --headless --path . -- --selftest 2>&1 | tee logs/selftest.log || true
+          grep -E "SCRIPT ERROR|Parse Error|Failed to load|Compile Error|Invalid call|Invalid access|Invalid get|Invalid set|Nonexistent" logs/selftest.log > logs/errors.txt || true
+          if [ -s logs/errors.txt ] || ! grep -q "SELFTEST OK" logs/selftest.log; then echo "Self-test FAILED"; exit 1; fi
+
+      - name: Export APK
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: /tmp/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        run: |
+          godot --headless --path . --verbose --export-debug "Android" build/DealDex2.apk 2>&1 | tail -n 80 | tee logs/export.log
+          ls -la build
+
+      - name: Upload APK artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DealDex2-apk
+          path: build/DealDex2.apk
+          if-no-files-found: warn
+
+      - name: Publish release
+        if: hashFiles('build/DealDex2.apk') != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Deal Dex 2 - build ${{ github.run_number }}
+          body: |
+            Debug APK for the Galaxy Z Flip 6. Download DealDex2.apk on the phone and install it.
+            Self-test: ${{ steps.selftest.outcome }}
+            Commit: ${{ github.sha }}
+          files: build/DealDex2.apk
+          make_latest: true
+
+      - name: Push logs to ci-logs branch
+        if: always()
+        run: |
+          git config --global --add safe.directory '*'
+          echo "run ${{ github.run_number }} sha ${{ github.sha }} selftest ${{ steps.selftest.outcome }}" > logs/SUMMARY.txt
+          cd logs
+          git init -q
+          git checkout -q -b ci-logs
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -q -m "CI logs for ${{ github.sha }}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" ci-logs
+
+      - name: Fail if self-test failed
+        if: steps.selftest.outcome == 'failure'
+        run: exit 1
