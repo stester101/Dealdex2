@@ -179,6 +179,33 @@ func _selftest() -> void:
 	# scripted dialogue + yes/no
 	await dialog.say(["Self-test line one.", "Line two is a bit longer so that it wraps onto the next line of the box."], "TEST")
 	print("SELFTEST dialog ok")
+	Game.set_flag("intro_done")
+	world.load_map("ferry", Vector2i(11, 16), 3)
+	await _frames(2)
+	await story._arrival(world)
+	print("SELFTEST arrival map ", world.map_id, " fade ", fader.color.a, " saved ", Game.has_save())
+	assert(world.map_id == "quay" and fader.color.a < 0.05)
+	# drag-to-move: touch the screen and drag down, player should walk south
+	var y0 = world.player.tile.y
+	var t1 = InputEventScreenTouch.new()
+	t1.index = 0
+	t1.position = Vector2(135, 120)
+	t1.pressed = true
+	Input.parse_input_event(t1)
+	await _frames(2)
+	var dr = InputEventScreenDrag.new()
+	dr.index = 0
+	dr.position = Vector2(135, 170)
+	Input.parse_input_event(dr)
+	await _wait(0.7)
+	var t2 = InputEventScreenTouch.new()
+	t2.index = 0
+	t2.position = Vector2(135, 170)
+	t2.pressed = false
+	Input.parse_input_event(t2)
+	await _wait(0.4)
+	print("SELFTEST drag moved from y ", y0, " to ", world.player.tile.y)
+	assert(world.player.tile.y > y0)
 	# battle: run a few real turns with auto-advancing text
 	var b = BattleScene.new()
 	battle_layer.add_child(b)
@@ -289,6 +316,37 @@ func flash(col: Color, t := 0.2) -> void:
 	r.queue_free()
 
 
+## Text shown on top of a black fade (the dialog box sits under the fade layer).
+func caption(text: String, secs := 1.8) -> void:
+	var l = UI.label(text, Vector2.ZERO, Color.WHITE, Color(0, 0, 0, 0))
+	l.position = Vector2(floor((vp_size().x - PixelText.width_of(text)) / 2.0), floor(screen_h() / 2.0))
+	l.modulate.a = 0.0
+	fade_layer.add_child(l)
+	var tw = create_tween()
+	tw.tween_property(l, "modulate:a", 1.0, 0.3)
+	tw.tween_interval(secs)
+	tw.tween_property(l, "modulate:a", 0.0, 0.3)
+	await tw.finished
+	l.queue_free()
+
+
+## Saves silently once the intro is done. Called on map changes, after battles and when the app pauses.
+func autosave() -> void:
+	if Game.flag("intro_done") and not Game.state.party.is_empty():
+		Game.save_game()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_WM_GO_BACK_REQUEST or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		if world and world.player and not in_battle:
+			autosave()
+
+
+## True when the world is free to take movement input (used by drag-to-move).
+func world_input_ok() -> bool:
+	return world != null and world.player != null and not world.busy and not is_ui_open()
+
+
 func banner(text: String) -> void:
 	var b = Control.new()
 	b.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -358,4 +416,5 @@ func start_battle(cfg: Dictionary) -> String:
 	if world.map.size() > 0:
 		Sfx.music(world.map.get("music", ""))
 	await fade_in(0.3)
+	autosave()
 	return res

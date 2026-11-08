@@ -116,7 +116,7 @@ func _arrival(W: World) -> void:
 	Sfx.stop_music()
 	Sfx.play("horn")
 	await M.fade_out(0.8)
-	await M.say(["Some hours later..."])
+	await M.caption("Some hours later...")
 	Game.set_flag("arrived")
 	Game.state.heal_map = "quay"
 	Game.state.heal_x = 20

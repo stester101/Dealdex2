@@ -12,7 +12,17 @@ var dpad_c = Vector2.ZERO
 var a_c = Vector2.ZERO
 var b_c = Vector2.ZERO
 var start_r = Rect2()
-const DPAD_R := 40.0
+const DPAD_R = 40.0
+# drag-to-move (floating stick anywhere on the game screen)
+const DRAG_DEAD = 10.0
+const DRAG_MAX = 34.0
+const TAP_MS = 250
+var _drag_idx = -99
+var _drag_origin = Vector2.ZERO
+var _drag_pos = Vector2.ZERO
+var _drag_moved = false
+var _drag_t0 = 0
+var _tap_frames = 0
 
 
 func _init() -> void:
@@ -51,6 +61,11 @@ func _draw() -> void:
 	draw_rect(start_r.grow(1), Color("0e0c1a"))
 	draw_rect(start_r, sc)
 	PixelText.draw_str(self, start_r.position + Vector2(9, 4), "MENU", Color("a8a0d0"))
+	if _drag_idx != -99 and _drag_moved:
+		var o = _drag_origin - position
+		var k = o + (_drag_pos - _drag_origin).limit_length(DRAG_MAX)
+		draw_arc(o, DRAG_MAX, 0, TAU, 32, Color(1, 1, 1, 0.35), 2.0)
+		draw_circle(k, 9.0, Color(1, 1, 1, 0.45))
 
 
 func _draw_btn(t: Texture2D, c: Vector2, letter: String, down: bool) -> void:
@@ -110,8 +125,57 @@ func release_all() -> void:
 	queue_redraw()
 
 
+func _process(_d: float) -> void:
+	if _tap_frames > 0:
+		_tap_frames -= 1
+		if _tap_frames == 0:
+			Input.action_release("a")
+	if _drag_idx != -99 and not Game.main.world_input_ok():
+		_end_drag(false)
+
+
+func _drag_dir(d: Vector2) -> String:
+	if absf(d.x) > absf(d.y):
+		return "right" if d.x > 0 else "left"
+	return "down" if d.y > 0 else "up"
+
+
+func _end_drag(allow_tap: bool) -> void:
+	var idx = _drag_idx
+	_press(idx, "")
+	_touch_action.erase(idx)
+	_drag_idx = -99
+	if allow_tap and not _drag_moved and Time.get_ticks_msec() - _drag_t0 < TAP_MS and Game.main.world_input_ok():
+		Input.action_press("a")
+		_tap_frames = 2
+	queue_redraw()
+
+
 func _input(ev) -> void:
 	if not is_visible_in_tree():
+		return
+	# drag-to-move on the game screen (above the control deck)
+	if ev is InputEventScreenTouch and ev.pressed and ev.position.y < position.y and _drag_idx == -99 and Game.main.world_input_ok():
+		_drag_idx = ev.index
+		_drag_origin = ev.position
+		_drag_pos = ev.position
+		_drag_moved = false
+		_drag_t0 = Time.get_ticks_msec()
+		return
+	if ev is InputEventScreenDrag and ev.index == _drag_idx:
+		_drag_pos = ev.position
+		var d = _drag_pos - _drag_origin
+		if d.length() > DRAG_DEAD:
+			_drag_moved = true
+			_press(ev.index, _drag_dir(d))
+		elif _drag_moved:
+			_press(ev.index, "")
+		if d.length() > DRAG_MAX:
+			_drag_origin = _drag_pos - d.normalized() * DRAG_MAX   # stick follows the finger
+		queue_redraw()
+		return
+	if ev is InputEventScreenTouch and not ev.pressed and ev.index == _drag_idx:
+		_end_drag(true)
 		return
 	if ev is InputEventScreenTouch:
 		if ev.pressed:

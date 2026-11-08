@@ -410,6 +410,7 @@ func warp(to: String, at: Vector2i, d: int) -> void:
 	load_map(to, at, d)
 	await Game.main.fade_in(0.25)
 	busy = false
+	Game.main.autosave()
 
 
 func _wander(delta: float) -> void:
