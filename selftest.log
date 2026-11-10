@@ -1,0 +1,19 @@
+Godot Engine v4.3.stable.official.77dcf97d8 - https://godotengine.org
+
+SELFTEST start
+SELFTEST strains ok
+SELFTEST map ferry 24x32 npcs 3
+SELFTEST map quay 30x26 npcs 7
+SELFTEST map hostel 10x8 npcs 1
+SELFTEST dialog ok
+SELFTEST arrival map quay fade 0 saved true
+SELFTEST drag moved from y 9 to 11
+SELFTEST turn 0 result '' hp 16/12
+SELFTEST turn 1 result '' hp 11/7
+SELFTEST turn 2 result '' hp 6/2
+SELFTEST catch true
+SELFTEST battle ok
+SELFTEST ai mustard eff 11
+SELFTEST rows 6
+SELFTEST save true load true
+SELFTEST OK
